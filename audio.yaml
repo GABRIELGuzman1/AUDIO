@@ -61,7 +61,6 @@
         dest: /usr/lib/pulse-16.1
         state: link
       ignore_errors: yes
-      # Si tu version difiere, ajusta src/dest o parametrizalo con una variable
 
     - name: Detener y deshabilitar PipeWire (a nivel de usuario)
       systemd:
@@ -96,15 +95,10 @@
       debug:
         var: pipewire_status.stdout
 
-    # Reiniciar PulseAudio al final, ya con PipeWire deshabilitado
+    # Reiniciar PulseAudio al final, ya con PipeWire deshabilitado 
     - name: Reiniciar PulseAudio
       command: pulseaudio -k
       ignore_errors: yes
 
     - name: Iniciar PulseAudio
       command: pulseaudio --start
-
-    - name: Verificar conectividad en el puerto 4713
-      wait_for:
-        port: 4713
-        timeout: 10
