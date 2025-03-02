@@ -1,104 +1,27 @@
 ---
 - name: Instalar y configurar PulseAudio en el servidor
-  hosts: all
+  hosts: localhost
   become: yes
-
-  vars:
-    # Ajusta esta variable segun las IPs que quieras permitir
-    ip_cliente: "192.168.1.0/24"
-
   tasks:
-    - name: Actualizar paquetes del sistema e instalar UFW
+
+    - name: Actualizar paquetes del sistema
       apt:
         update_cache: yes
-        upgrade: dist
-        name: ufw
-        state: present
 
-    - name: Instalar PulseAudio y modulos adicionales
+    - name: Instalar PulseAudio, pavucontrol y pulseaudio-utils
       apt:
         name:
           - pulseaudio
           - pavucontrol
-          - paprefs
           - pulseaudio-utils
         state: present
 
-    - name: Configurar modulo TCP en default.pa
-      lineinfile:
-        path: /etc/pulse/default.pa
-        line: "load-module module-native-protocol-tcp auth-ip-acl={{ ip_cliente }}"
-        insertafter: "^### Network access modules$"
-        create: yes
-
-    - name: Añadir modulo ALSA sink
-      lineinfile:
-        path: /etc/pulse/default.pa
-        line: "load-module module-alsa-sink"
-        insertafter: "^### Network access modules$"
-        create: yes
-
-    - name: Añadir modulo suspend-on-idle
-      lineinfile:
-        path: /etc/pulse/default.pa
-        line: "load-module module-suspend-on-idle"
-        insertafter: "^### Network access modules$"
-        create: yes
-
-    - name: Habilitar UFW (Uncomplicated Firewall)
-      ufw:
-        state: enabled
-
-    - name: Permitir trafico en el puerto 4713 (PulseAudio TCP)
-      ufw:
-        rule: allow
-        port: 4713
-        proto: tcp
-
-    - name: Crear enlace simbolico para PulseAudio (segun version instalada)
-      file:
-        src: /usr/lib/pulse-16.1+dfsg1/
-        dest: /usr/lib/pulse-16.1
-        state: link
+    - name: Verificar que PulseAudio esté instalado
+      command: which pulseaudio
+      register: pulseaudio_installed
       ignore_errors: yes
 
-    - name: Detener y deshabilitar PipeWire (a nivel de usuario)
-      systemd:
-        name: "{{ item }}"
-        state: stopped
-        enabled: no
-        scope: user
-      loop:
-        - pipewire
-        - pipewire.socket
-        - pipewire-pulse.service
-        - pipewire-pulse.socket
-      ignore_errors: yes
-
-    - name: Detener y deshabilitar PipeWire (a nivel de sistema)
-      systemd:
-        name: "{{ item }}"
-        state: stopped
-        enabled: no
-      loop:
-        - pipewire
-        - pipewire.socket
-      ignore_errors: yes
-
-    - name: Verificar estado de PipeWire (a nivel de usuario)
-      command: systemctl --user list-units | grep pipewire-pulse
-      register: pipewire_status
-      changed_when: false
-      failed_when: false
-
-    - name: Mostrar estado de PipeWire
+    - name: Mostrar mensaje de éxito
       debug:
-        var: pipewire_status.stdout
-
-    # Reiniciar PulseAudio al final, ya con PipeWire deshabilitado 
-    - name: Reiniciar PulseAudio
-      command: pulseaudio -k
-      ignore_errors: yes
-
-    - name: Iniciar PulseAudio
-      command: pulseaudio --start
+        msg: "✅ PulseAudio ha sido instalado correctamente."
+      when: pulseaudio_installed.rc == 0
